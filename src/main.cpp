@@ -115,13 +115,13 @@ int main(int argc, char **argv) {
       .metavar("EVENT")
       .choices("cpu-cycles");
 
-  program.add_argument("-p", "--period")
-      .default_value(std::uint64_t(500))
+  program.add_argument("-p", "--period-ms")
+      .default_value(std::uint64_t(100))
       .help("period at which to sample the event, in milliseconds")
       .metavar("N")
       .scan<'u', std::uint64_t>();
   program.add_argument("--buffer-size")
-      .default_value(std::uint64_t(60))
+      .default_value(std::uint64_t(100))
       .help("size of the event history buffer")
       .metavar("N")
       .scan<'u', std::uint64_t>();
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
   }
 
   std::string event = program.get<std::string>("event");
-  std::uint64_t period_ms = program.get<std::uint64_t>("period");
+  std::uint64_t period_ms = program.get<std::uint64_t>("period-ms");
   std::uint64_t bufferSize = program.get<std::uint64_t>("buffer-size");
 
   std::vector<std::pair<std::uint32_t, std::uint64_t>> perfEventDescriptors;
