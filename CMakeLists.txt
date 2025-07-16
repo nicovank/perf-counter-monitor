@@ -25,8 +25,8 @@ FetchContent_Declare(ftxui
 message(STATUS "Fetching and configuring FTXUI...")
 FetchContent_MakeAvailable(ftxui)
 
-add_executable(monitor src/main.cpp src/perf.cpp)
-target_link_libraries(monitor PRIVATE
+add_executable(perf-counter-monitor src/main.cpp src/perf.cpp)
+target_link_libraries(perf-counter-monitor PRIVATE
   argparse
   ftxui::component
   ftxui::screen
