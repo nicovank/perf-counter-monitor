@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+jobs:
+  gcc-build:
+    strategy:
+      matrix:
+        build-type: [Debug, Release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download GCC 15
+        run: sudo apt install -y gcc-15 g++-15
+
+      - name: Configure
+        run: >
+          cmake . -B build
+          -DCMAKE_BUILD_TYPE=${{matrix.build-type}}
+          -DCMAKE_C_COMPILER=gcc-15
+          -DCMAKE_CXX_COMPILER=g++-15
+
+      - name: Build
+        run: cmake --build build --parallel
+
+  clang-build-analyze:
+    strategy:
+      matrix:
+        build-type: [Debug, Release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download LLVM
+        run: |
+          sudo apt install -y lsb-release wget software-properties-common gnupg
+          curl -sSf https://apt.llvm.org/llvm.sh | sudo bash -s -- 20 all
+
+      - name: Configure CMake (Clang)
+        run: >
+          cmake . -B build
+          -DCMAKE_BUILD_TYPE=${{matrix.build-type}}
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DCMAKE_C_COMPILER=clang-20
+          -DCMAKE_CXX_COMPILER=clang++-20
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Check clang-format
+        if: ${{ matrix.build-type == 'Debug' }}
+        run: find src -name '*.cpp' -o -name '*.h' -o -name '*.hpp'  | xargs clang-format-20 --dry-run --Werror
+
+      - name: Check clang-tidy
+        if: ${{ matrix.build-type == 'Debug' }}
+        run: run-clang-tidy-20 -p build -warnings-as-errors="*" "$(pwd)/src"

@@ -141,12 +141,12 @@ perf::SystemWideGroup::SystemWideGroup(
   assert(!events.empty());
 
   for (int i = 0; i < nCpus; ++i) {
-    for (std::size_t j = 0; j < events.size(); ++j) {
+    for (const auto &event : events) {
       struct perf_event_attr pe;
       std::memset(&pe, 0, sizeof(struct perf_event_attr));
       pe.size = sizeof(struct perf_event_attr);
-      pe.type = events[j].first;
-      pe.config = events[j].second;
+      pe.type = event.first;
+      pe.config = event.second;
 
       const auto fd = perf_event_open(&pe, -1, i, -1, 0);
       if (fd == -1) {

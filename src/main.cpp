@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -7,16 +8,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <exception>
 #include <iostream>
 #include <numeric>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
-#include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
-#include <sys/ioctl.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <argparse/argparse.hpp>
@@ -26,18 +28,25 @@
 
 #include "perf.hpp"
 
+namespace {
 std::string humanReadable(std::uint64_t value) {
   if (value < 1'000) {
     return std::to_string(value);
-  } else if (value < 1'000'000) {
-    return std::to_string(value / 1'000) + "K";
-  } else if (value < 1'000'000'000) {
-    return std::to_string(value / 1'000'000) + "M";
-  } else if (value < 1'000'000'000'000) {
-    return std::to_string(value / 1'000'000'000) + "G";
-  } else {
-    return std::to_string(value / 1'000'000'000'000) + "T";
   }
+
+  if (value < 1'000'000) {
+    return std::to_string(value / 1'000) + "K";
+  }
+
+  if (value < 1'000'000'000) {
+    return std::to_string(value / 1'000'000) + "M";
+  }
+
+  if (value < 1'000'000'000'000) {
+    return std::to_string(value / 1'000'000'000) + "G";
+  }
+
+  return std::to_string(value / 1'000'000'000'000) + "T";
 }
 
 ftxui::Element
@@ -45,10 +54,10 @@ plot_single_value(const std::deque<std::vector<std::uint64_t>> &data,
                   std::uint64_t period_ms) {
   auto c = ftxui::Canvas(150, 100);
 
-  int mx = 10; // Start plotting from this x value.
-  int my = 5;  // Start plotting from this y value.
+  const int mx = 10; // Start plotting from this x value.
+  const int my = 5;  // Start plotting from this y value.
 
-  auto max_value =
+  const std::uint64_t max_value =
       std::accumulate(data.begin(), data.end(), std::uint64_t(0),
                       [](std::uint64_t a, const std::vector<std::uint64_t> &b) {
                         return std::max(a, b[0]);
@@ -60,9 +69,14 @@ plot_single_value(const std::deque<std::vector<std::uint64_t>> &data,
   for (std::size_t i = 0; i < data.size(); ++i) {
     const auto value = data[i][0];
 
-    int x = static_cast<double>(i) / data.size() * (c.width() - mx) + mx;
-    int y = c.height() -
-            (static_cast<double>(value) / max_value * (c.height() - my) + my);
+    const auto x = static_cast<int>(static_cast<double>(i) /
+                                        static_cast<double>(data.size()) *
+                                        (c.width() - mx) +
+                                    mx);
+    const auto y = static_cast<int>(
+        c.height() - (static_cast<double>(value) /
+                          static_cast<double>(max_value) * (c.height() - my) +
+                      my));
 
     xs.push_back(x);
     ys.push_back(y);
@@ -96,8 +110,10 @@ ftxui::Element plot(const std::string &event,
 
 int perf_event_open(struct perf_event_attr *attr, pid_t pid, int cpu,
                     int group_fd, unsigned long flags) {
-  return syscall(SYS_perf_event_open, attr, pid, cpu, group_fd, flags);
+  return static_cast<int>(
+      syscall(SYS_perf_event_open, attr, pid, cpu, group_fd, flags));
 }
+} // namespace
 
 int main(int argc, char **argv) {
   // Disable --version argument.
@@ -134,9 +150,9 @@ int main(int argc, char **argv) {
     std::exit(EXIT_FAILURE);
   }
 
-  std::string event = program.get<std::string>("event");
-  std::uint64_t period_ms = program.get<std::uint64_t>("period-ms");
-  std::uint64_t bufferSize = program.get<std::uint64_t>("buffer-size");
+  const auto event = program.get<std::string>("event");
+  const auto period_ms = program.get<std::uint64_t>("period-ms");
+  const auto bufferSize = program.get<std::uint64_t>("buffer-size");
 
   std::vector<std::pair<std::uint32_t, std::uint64_t>> perfEventDescriptors;
   if (event == "cpu-cycles") {
@@ -157,7 +173,7 @@ int main(int argc, char **argv) {
       [&] { return plot(event, history, period_ms) | ftxui::border; });
 
   std::thread ui_thread([&]() {
-    screen.Loop(component | ftxui::CatchEvent([&](ftxui::Event event) {
+    screen.Loop(component | ftxui::CatchEvent([&](const ftxui::Event &event) {
                   if (event == ftxui::Event::CtrlC ||
                       event == ftxui::Event::Character('q')) {
                     running = false;
