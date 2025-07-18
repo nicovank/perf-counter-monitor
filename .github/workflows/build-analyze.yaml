@@ -18,15 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Download GCC 15
-        run: sudo apt install -y gcc-15 g++-15
+      - name: Download GCC 14
+        run: sudo apt install -y gcc-14 g++-14
 
       - name: Configure
         run: >
           cmake . -B build
           -DCMAKE_BUILD_TYPE=${{matrix.build-type}}
-          -DCMAKE_C_COMPILER=gcc-15
-          -DCMAKE_CXX_COMPILER=g++-15
+          -DCMAKE_C_COMPILER=gcc-14
+          -DCMAKE_CXX_COMPILER=g++-14
 
       - name: Build
         run: cmake --build build --parallel
