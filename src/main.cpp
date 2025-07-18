@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
         .choices("cpu-cycles", "dtlb-miss-rate");
 
     program.add_argument("-p", "--period-ms")
-        .default_value(std::uint64_t(100))
+        .default_value(std::uint64_t(200))
         .help("period at which to sample the event, in milliseconds")
         .metavar("N")
         .scan<'u', std::uint64_t>();
